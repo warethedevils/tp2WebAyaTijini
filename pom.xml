@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>ma.emsi.ayatijini</groupId>
+    <artifactId>tp2WebAyaTijini</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <name>tp2WebAyaTijini</name>
+    <packaging>war</packaging>
+
+    <properties>
+        <maven.compiler.release>25</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <jakarta.jakartaee-web-api.version>11.0.0</jakarta.jakartaee-web-api.version>
+        <primefaces.version>16.0.1</primefaces.version>
+        <langchain4j.version>1.22.0</langchain4j.version>
+        <langchain4j.beta.version>1.22.0-beta32</langchain4j.beta.version>
+    </properties>
+
+    <dependencies>
+        <!-- API Jakarta EE : fournie par le serveur d'application (Payara) -->
+        <dependency>
+            <groupId>jakarta.platform</groupId>
+            <artifactId>jakarta.jakartaee-web-api</artifactId>
+            <version>${jakarta.jakartaee-web-api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Composants JSF PrimeFaces -->
+        <dependency>
+            <groupId>org.primefaces</groupId>
+            <artifactId>primefaces</artifactId>
+            <version>${primefaces.version}</version>
+        </dependency>
+
+        <!-- LangChain4j : le même numéro de version pour toutes les dépendances liées à LangChain4j -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+
+        <!-- API de Gemini avec LangChain4j -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-google-genai</artifactId>
+            <version>${langchain4j.beta.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.5.1</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
