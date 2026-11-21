@@ -6,7 +6,9 @@ import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.google.genai.GoogleGenAiChatModel;
 import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.Result;
 import jakarta.enterprise.context.Dependent;
+import jakarta.inject.Inject;
 
 import java.io.Serializable;
 
@@ -43,6 +45,12 @@ public class LlmClient implements Serializable {
      * LangChain4j envoie cet historique avec chaque nouvelle question.
      */
     private ChatMemory chatMemory;
+
+    /**
+     * Accumule le nombre de tokens utilisés pendant la session (même instance pour toute la session).
+     */
+    @Inject
+    private CompteurTokens compteurTokens;
 
     /**
      * Crée le modèle qui représente le LLM, la mémoire de la conversation et l'assistant.
@@ -98,6 +106,9 @@ public class LlmClient implements Serializable {
      * @return la réponse du LLM.
      */
     public String envoyerRequete(String question) {
-        return assistant.chat(question);
+        Result<String> resultat = assistant.chat(question);
+        // Ajoute les tokens de cette requête (question, historique et réponse) au total de la session
+        compteurTokens.ajouter(resultat.tokenUsage().totalTokenCount());
+        return resultat.content();
     }
 }

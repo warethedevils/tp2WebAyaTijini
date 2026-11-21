@@ -1,6 +1,7 @@
 package ma.emsi.ayatijini.tp2.jsf;
 
 
+import ma.emsi.ayatijini.tp2.llm.CompteurTokens;
 import ma.emsi.ayatijini.tp2.llm.LlmClient;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
@@ -59,6 +60,13 @@ public class Bb implements Serializable {
     private LlmClient llmClient;
 
     /**
+     * Nombre de tokens utilisés depuis le début de la session (même instance pour tous les backing beans
+     * de la session, et pour LlmClient qui y ajoute les tokens de chaque requête).
+     */
+    @Inject
+    private CompteurTokens compteurTokens;
+
+    /**
      * Contexte JSF. Utilisé pour qu'un message d'erreur s'affiche dans le formulaire.
      */
     @Inject
@@ -101,6 +109,16 @@ public class Bb implements Serializable {
      */
     public void setReponse(String reponse) {
         this.reponse = reponse;
+    }
+
+    /**
+     * Propriété en lecture seule : nombre de tokens utilisés depuis le début de la session, même après
+     * un changement de rôle système (nouveau chat).
+     *
+     * @return le nombre total de tokens.
+     */
+    public long getNombreTokens() {
+        return compteurTokens.getTotal();
     }
 
     public String getConversation() {

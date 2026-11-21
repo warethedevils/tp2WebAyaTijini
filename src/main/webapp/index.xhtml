@@ -53,6 +53,8 @@
                         </h:panelGroup>
                         <h:inputTextarea id="reponse" value="#{bb.reponse}" title="Réponse"
                                          cols="50" rows="15"/>
+                        <!-- Total des tokens utilisés depuis le début de la session (même après un nouveau chat) -->
+                        <h:outputText value="Tokens utilisés depuis le début : #{bb.nombreTokens}"/>
                     </h:panelGrid>
 
                 </h:panelGrid>
