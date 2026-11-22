@@ -1,11 +1,14 @@
 package ma.emsi.ayatijini.tp2.jsf;
 
 
+import dev.langchain4j.service.TokenStream;
 import ma.emsi.ayatijini.tp2.llm.CompteurTokens;
 import ma.emsi.ayatijini.tp2.llm.LlmClient;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.model.SelectItem;
+import jakarta.faces.push.Push;
+import jakarta.faces.push.PushContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -13,6 +16,7 @@ import jakarta.inject.Named;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Backing bean pour la page JSF index.xhtml.
@@ -65,6 +69,14 @@ public class Bb implements Serializable {
      */
     @Inject
     private CompteurTokens compteurTokens;
+
+    /**
+     * Websocket du channel "chat" (voir la balise f:websocket de la page) : permet d'envoyer à la page,
+     * au fur et à mesure, les réponses partielles du LLM.
+     */
+    @Inject
+    @Push(channel = "chat")
+    private PushContext webSocketPourChat;
 
     /**
      * Contexte JSF. Utilisé pour qu'un message d'erreur s'affiche dans le formulaire.
@@ -130,8 +142,12 @@ public class Bb implements Serializable {
     }
 
     /**
-     * Envoie la question au LLM par l'intermédiaire de llmClient et affiche sa réponse.
+     * Envoie la question au LLM par l'intermédiaire de llmClient et affiche sa réponse au fur et à mesure
+     * de sa génération (streaming).
      * Le rôle système est transmis à llmClient au début de la conversation.
+     * <p>
+     * Cette méthode retourne tout de suite, sans attendre la réponse du LLM. Chaque réponse partielle est envoyée
+     * à la page par le websocket, puis un dernier message envoyé à la fin de la réponse met à jour la conversation.
      *
      * @return null pour rester sur la même page.
      */
@@ -151,21 +167,39 @@ public class Bb implements Serializable {
             this.roleSystemeChangeable = false;
         }
 
-        // Envoie la question au LLM et récupère sa réponse.
+        // La question est gardée ici car, quand la réponse sera terminée, l'utilisateur aura peut-être
+        // déjà commencé à écrire une autre question.
+        final String questionEnvoyee = this.question;
+
+        // Envoie la question au LLM : le TokenStream est configuré avant d'être démarré.
         try {
-            this.reponse = this.llmClient.envoyerRequete(this.question);
+            TokenStream tokenStream = this.llmClient.envoyerRequete(questionEnvoyee);
+            tokenStream
+                    // Pour chaque réponse partielle (un token ou, souvent, un groupe de tokens) : elle est envoyée
+                    // dans le websocket, et la page l'ajoute à la zone de la réponse.
+                    .onPartialResponse(tokens -> webSocketPourChat.send(tokens))
+                    // Quand le LLM a fini de répondre : comptage des tokens, mise à jour de la conversation,
+                    // puis envoi d'un message particulier qui indique à la page que la réponse est terminée.
+                    .onCompleteResponse(response -> {
+                        this.reponse = response.aiMessage().text();
+                        this.llmClient.addReponse(response);
+                        afficherConversation(questionEnvoyee);
+                        webSocketPourChat.send(Map.of(
+                                "conversation", this.conversation.toString(),
+                                "tokens", this.llmClient.getTotalTokens()));
+                    })
+                    .onError(erreur -> webSocketPourChat.send(Map.of(
+                            "erreur", "Problème avec l'API du LLM : " + erreur.getMessage())))
+                    .start();
         } catch (Exception e) {
             // Problème avec l'API du LLM (clé incorrecte, quota dépassé, réseau...) : le message d'erreur
             // est affiché dans le formulaire.
-            this.reponse = "Erreur : " + e.getMessage();
             FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR,
                     "Problème de connexion avec l'API du LLM",
                     "Problème de connexion avec l'API du LLM : " + e.getMessage());
             facesContext.addMessage(null, message);
         }
 
-        // La conversation contient l'historique des questions-réponses depuis le début.
-        afficherConversation();
         return null;
     }
 
@@ -184,9 +218,13 @@ public class Bb implements Serializable {
 
     /**
      * Pour afficher la conversation dans le textArea de la page JSF.
+     * La conversation contient l'historique des questions-réponses depuis le début.
+     *
+     * @param questionPosee la question qui vient de recevoir la réponse.
      */
-    private void afficherConversation() {
-        this.conversation.append("== User:\n").append(question).append("\n== Serveur:\n").append(reponse).append("\n");
+    private void afficherConversation(String questionPosee) {
+        this.conversation.append("== User:\n").append(questionPosee)
+                .append("\n== Serveur:\n").append(reponse).append("\n");
     }
 
     public List<SelectItem> getRolesSysteme() {

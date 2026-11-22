@@ -21,19 +21,22 @@ public class CompteurTokens implements Serializable {
 
     /**
      * Nombre total de tokens utilisés depuis le début de la session.
-     * Un AtomicLong car le total peut être modifié par plusieurs threads (voir le streaming).
+     * Un AtomicLong car le total est modifié par un autre thread que celui de la requête HTTP (voir le streaming).
      */
     private final AtomicLong total = new AtomicLong();
 
     /**
-     * Ajoute des tokens au total.
+     * Retourne l'objet qui contient le total, pour pouvoir y ajouter des tokens.
+     * <p>
+     * Avec le streaming, les tokens sont comptés quand le LLM a fini de répondre, dans un thread différent de
+     * celui de la requête HTTP. Dans ce thread le contexte de la session n'est pas actif : le bean de portée
+     * session ne peut donc pas être utilisé directement. Il faut appeler cette méthode dans le thread de la requête
+     * HTTP, et garder l'objet retourné pour l'utiliser plus tard dans l'autre thread.
      *
-     * @param nombre le nombre de tokens utilisés par une requête (ignoré s'il est inconnu, c'est-à-dire null).
+     * @return l'accumulateur du nombre total de tokens de la session.
      */
-    public void ajouter(Integer nombre) {
-        if (nombre != null) {
-            total.addAndGet(nombre);
-        }
+    public AtomicLong getAccumulateur() {
+        return total;
     }
 
     /**
