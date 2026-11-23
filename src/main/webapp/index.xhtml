@@ -13,7 +13,7 @@
     <f:view>
 
         <!-- Les éventuels messages d'erreur non liés à un champ particulier sont affichés ici en rouge -->
-        <h:messages errorStyle="color: red" showDetail="true" showSummary="false" globalOnly="true"/>
+        <h:messages id="messages" errorStyle="color: red" showDetail="true" showSummary="false" globalOnly="true"/>
 
         <h:form id="form">
 
@@ -27,7 +27,7 @@
                 <f:selectItems value="#{bb.rolesSysteme}"/>
             </p:selectOneMenu>
             <!-- Message d'erreur ici si l'utilisateur oublie d'indiquer un rôle système. -->
-            <h:message for="rolesysteme" errorStyle="color: red" />
+            <h:message id="messageRole" for="rolesysteme" errorStyle="color: red" />
 
             <!-- Si on veut commencer un nouveau chat avec, éventuellement, un autre rôle. -->
             <h:outputText value="  "/>
@@ -46,7 +46,13 @@
                         </h:panelGroup>
                         <h:inputTextarea id="question" value="#{bb.question}" title="Question"
                                          cols="50" rows="5"/>
-                        <h:commandButton value="Envoyer la question" action="#{bb.envoyer}"/>
+                        <!-- Envoi de la question par un appel Ajax : la page n'est pas remplacée par une nouvelle page,
+                        et la réponse, envoyée par le websocket au fur et à mesure, reste affichée.
+                        En retour de l'appel Ajax, seuls les messages d'erreur et la liste des rôles sont mis à jour. -->
+                        <h:commandButton value="Envoyer la question" action="#{bb.envoyer()}">
+                            <f:ajax execute="@form" render=":messages messageRole rolesysteme"
+                                    onevent="evenementAjax"/>
+                        </h:commandButton>
                         <h:panelGroup>
                             <h:outputText value="Réponse :"/>
                             <button type="button" onclick="copyToClipboard('reponse')">Copier réponse</button>
@@ -54,7 +60,7 @@
                         <h:inputTextarea id="reponse" value="#{bb.reponse}" title="Réponse"
                                          cols="50" rows="15"/>
                         <!-- Total des tokens utilisés depuis le début de la session (même après un nouveau chat) -->
-                        <h:outputText value="Tokens utilisés depuis le début : #{bb.nombreTokens}"/>
+                        <h:outputText id="nombreTokens" value="Tokens utilisés depuis le début : #{bb.nombreTokens}"/>
                     </h:panelGrid>
 
                 </h:panelGrid>
@@ -69,6 +75,10 @@
 
             </h:panelGrid>
         </h:form>
+
+        <!-- Websocket pour recevoir les réponses du LLM au fur et à mesure de leur génération (streaming).
+        La fonction JavaScript socketListener (voir script.js) est exécutée à chaque message envoyé par le serveur. -->
+        <f:websocket channel="chat" scope="view" onmessage="socketListener"/>
     </f:view>
 </h:body>
 </html>
