@@ -8,6 +8,35 @@ propre à chaque LLM.
 
 Les tests qui ont préparé ce TP sont dans un autre dépôt : `tp2TestsAyaTijini`.
 
+## Aperçu du rendu
+
+L'application tourne sur un serveur local (`localhost`), qui n'est pas accessible depuis un autre ordinateur.
+Voici donc des captures d'écran de l'application en fonctionnement.
+
+**Rôle « Traducteur Anglais-Français »** : le LLM traduit la phrase au lieu d'y répondre, donc le rôle système est
+bien pris en compte. La question et la réponse sont ajoutées à la conversation (à droite).
+
+![Rôle Traducteur](docs/rendu-traducteur.jpg)
+
+**Streaming** : une longue réponse en cours de génération. Elle s'affiche au fur et à mesure dans la zone « Réponse »
+(reçue par le websocket) ; la conversation et le nombre de tokens ne sont pas encore mis à jour.
+
+![Streaming en cours](docs/rendu-streaming-en-cours.jpg)
+
+**Fin de la réponse** : la conversation est mise à jour et le nombre de tokens utilisés depuis le début de la session
+est augmenté (de 1022 à 1997 tokens).
+
+![Réponse terminée](docs/rendu-reponse-terminee.jpg)
+
+**Mémoire de la conversation** : la deuxième question (« Résume cette histoire en une seule phrase. ») n'a de sens
+que grâce à l'historique, renvoyé au LLM par LangChain4j. Le total des tokens a encore augmenté (3042).
+
+![Mémoire et tokens](docs/rendu-memoire-et-tokens.jpg)
+
+**Envoi d'une question vide** : le message d'erreur s'affiche en rouge en haut de la page (par l'appel Ajax).
+
+![Erreur question vide](docs/rendu-erreur-question-vide.jpg)
+
 ## Versions utilisées
 
 | Élément | Version |
