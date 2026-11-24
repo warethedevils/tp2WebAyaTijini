@@ -37,13 +37,44 @@ Sous Windows, si Java refuse le certificat de l'API de Gemini (« PKIX path buil
 | Fichier | Rôle |
 |---|---|
 | `src/main/webapp/index.xhtml` | Page JSF : rôle système, question, réponse et conversation |
-| `src/main/webapp/resources/` | Fichiers CSS et JavaScript utilisés par la page |
-| `.../tp2/jsf/Bb.java` | Backing bean (`@ViewScoped`) : état de la page ; il délègue le travail avec le LLM à `LlmClient` |
-| `.../tp2/llm/LlmClient.java` | Classe « métier » (`@Dependent`) : crée le modèle Gemini, l'assistant (`AiServices`) et la mémoire de la conversation |
-| `.../tp2/llm/Assistant.java` | Interface du service IA ; LangChain4j en fournit l'implémentation |
+| `src/main/webapp/resources/` | Fichiers CSS et JavaScript utilisés par la page (`script.js` : copie dans le presse-papier, et fonctions du streaming) |
+| `src/main/webapp/WEB-INF/web.xml` | Page d'accueil `index.xhtml` et activation du point d'accès websocket de JSF |
+| `.../tp2/jsf/Bb.java` | Backing bean (`@ViewScoped`) : état de la page ; il délègue le travail avec le LLM à `LlmClient` et envoie les réponses partielles dans le websocket |
+| `.../tp2/llm/LlmClient.java` | Classe « métier » (`@Dependent`) : crée le modèle Gemini (streaming), l'assistant (`AiServices`) et la mémoire de la conversation |
+| `.../tp2/llm/Assistant.java` | Interface du service IA (la méthode retourne un `TokenStream`) ; LangChain4j en fournit l'implémentation |
+| `.../tp2/llm/CompteurTokens.java` | Bean de portée session qui accumule le nombre de tokens utilisés depuis le début de la session |
 
 Enchaînement : `Bb.envoyer()` → `LlmClient.envoyerRequete(question)` → `Assistant.chat(question)` (proxy créé par
-LangChain4j) → API de Gemini.
+LangChain4j) → API de Gemini. Les réponses reviennent ensuite par le websocket jusqu'à la page (voir plus bas).
+
+## Parties optionnelles du TP
+
+### Nombre de tokens utilisés depuis le début
+
+Le total est affiché sous la zone de la réponse. Il n'est pas gardé dans le backing bean (de portée view) car il serait
+perdu au changement de rôle (« Nouveau chat ») : il est accumulé dans `CompteurTokens`, un bean de portée **session**
+injecté à la fois dans `LlmClient` (qui y ajoute les tokens de chaque requête) et dans `Bb` (qui affiche le total).
+Les tokens sont lus dans la réponse du LLM (`ChatResponse.tokenUsage()`).
+
+### Streaming de la réponse avec un websocket
+
+La réponse du LLM s'affiche au fur et à mesure de sa génération (Gemini regroupe les tokens : on reçoit quelques
+groupes de tokens et pas des tokens isolés).
+
+- La page contient `<f:websocket channel="chat" scope="view" onmessage="socketListener"/>` et la question est
+  envoyée par un appel Ajax (`<f:ajax>`), pour que la page ne soit pas remplacée.
+- `Bb.envoyer()` configure le `TokenStream` : `onPartialResponse` envoie chaque morceau dans le websocket,
+  `onCompleteResponse` met à jour la conversation et envoie un dernier message (conversation et total de tokens).
+- La fonction JavaScript `socketListener` (dans `script.js`) ajoute les morceaux à la zone de la réponse.
+- Les réponses du LLM sont reçues dans un autre thread que celui de la requête HTTP, où le contexte CDI de la session
+  n'est pas actif : `LlmClient` récupère l'accumulateur de tokens dans le thread de la requête, pour l'utiliser
+  ensuite quand la réponse est terminée.
+- La mémoire de la conversation n'est pas mise à jour à la main : LangChain4j y ajoute la question et la réponse
+  tout seul quand la réponse est terminée.
+
+À cause du websocket, il faut **redémarrer Payara** (et pas seulement redéployer l'application). Si le navigateur
+affiche une erreur JavaScript (« socketListener is not defined »), vider son cache : il a gardé une ancienne version
+de `script.js`.
 
 ## L'historique de la conversation
 
